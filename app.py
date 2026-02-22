@@ -20,14 +20,13 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ---- DATA ----
-SHEET_CSV_URL = st.secrets["SHEET_CSV_URL"]
-
 # Load sensor configuration
 with open('sensor_config.json', 'r') as f:
-    sensor_config = json.load(f)
+    all_sensors_config = json.load(f)
 
 @st.cache_data
-def load_data():
+def load_data(data_url_key):
+    SHEET_CSV_URL = st.secrets[data_url_key]
     try:
         # Ensure URL starts with http/https
         if not SHEET_CSV_URL.startswith(('http://', 'https://')):
@@ -39,7 +38,27 @@ def load_data():
         st.error(f"Error: {str(e)}")
         raise
 
-df = load_data()
+# Initialize session state for selected sensor
+if 'selected_sensor' not in st.session_state:
+    st.session_state.selected_sensor = list(all_sensors_config.keys())[0]
+
+# Sidebar sensor selector at the top
+st.sidebar.header("Sensor Selection")
+selected_sensor = st.sidebar.selectbox(
+    "Select Sensor",
+    options=list(all_sensors_config.keys()),
+    index=list(all_sensors_config.keys()).index(st.session_state.selected_sensor)
+)
+
+# Update selected sensor in session state
+if selected_sensor != st.session_state.selected_sensor:
+    st.session_state.selected_sensor = selected_sensor
+
+# Get current sensor config
+sensor_config = all_sensors_config[st.session_state.selected_sensor]
+
+# Load data for selected sensor
+df = load_data(sensor_config['data_url'])
 
 # Convert datetime to pandas datetime
 df['datetime'] = pd.to_datetime(df['datetime'])
@@ -118,7 +137,7 @@ df_diff = df_resampled.copy()
 for col in count_cols:
     df_diff[f'{col}_diff'] = df_resampled[col].diff().fillna(0)
 
-st.title(f"📈 {sensor_config.get('sensor', 'Datacake')} Dashboard")
+st.title(f"📈 {st.session_state.selected_sensor} Dashboard")
 
 # Create dual-axis chart using subplots
 fig = make_subplots(specs=[[{"secondary_y": True}]])
@@ -165,7 +184,7 @@ fig.update_xaxes(
     range=[pd.Timestamp(st.session_state.start_date), pd.Timestamp(st.session_state.end_date) + pd.Timedelta(days=1)]
 )
 fig.update_yaxes(title_text="Consumption / Count", secondary_y=False)
-fig.update_yaxes(title_text="Battery (V)", secondary_y=True, showgrid=False)
+fig.update_yaxes(title_text="Battery (V)", secondary_y=True, showgrid=False, range=[2.8, 3.8])
 
 fig.update_layout(
     hovermode='x unified',

@@ -1,10 +1,22 @@
 {
-  "sensor": "qld_orm_gas-station",
-  "COUNT_TIME1": "Gas",
-  "COUNT_TIME1_UNIT": "m3",
-  "COUNT_TIME2": "",
-  "COUNT_TIME2_UNIT": "",
-  "COUNT_TIME3": "",
-  "COUNT_TIME3_UNIT": "",
-  "timezone": "Australia/Brisbane"
+  "qld_orm_gas-station": {
+    "data_url": "SHEET_CSV_URL_01",
+    "COUNT_TIME1": "Gas",
+    "COUNT_TIME1_UNIT": "m3",
+    "COUNT_TIME2": "",
+    "COUNT_TIME2_UNIT": "",
+    "COUNT_TIME3": "",
+    "COUNT_TIME3_UNIT": "",
+    "timezone": "Australia/Brisbane"
+  },
+  "qld_too_dryer": {
+    "data_url": "SHEET_CSV_URL_02",
+    "COUNT_TIME1": "Gas",
+    "COUNT_TIME1_UNIT": "m3",
+    "COUNT_TIME2": "",
+    "COUNT_TIME2_UNIT": "",
+    "COUNT_TIME3": "",
+    "COUNT_TIME3_UNIT": "",
+    "timezone": "Australia/Brisbane"
+  }
 }
