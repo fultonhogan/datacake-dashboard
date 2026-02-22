@@ -18,6 +18,7 @@ if not st.session_state.logged_in:
 
 # ---- DATA ----
 SHEET_CSV_URL = st.secrets["SHEET_CSV_URL"]
+print(f"SHEET_CSV_URL: {SHEET_CSV_URL}") 
 
 @st.cache_data
 def load_data():
