@@ -69,17 +69,23 @@ st.title("📈 Datacake Historical Data")
 # Create dual-axis chart using subplots
 fig = make_subplots(specs=[[{"secondary_y": True}]])
 
-# Add traces for all columns except datetime and BATTERY
-for col in df.columns:
-    if col not in ['datetime', 'BATTERY']:
-        fig.add_trace(
-            go.Scatter(x=df['datetime'], y=df[col], name=col, mode='lines'),
-            secondary_y=False
-        )
+# Add bar traces for consumption (differences) for COUNT_TIME columns
+for col in count_cols:
+    fig.add_trace(
+        go.Bar(x=df_diff['datetime'], y=df_diff[f'{col}_diff'], name=f'{col} consumption'),
+        secondary_y=False
+    )
+
+# Add line traces for cumulative COUNT_TIME columns
+for col in count_cols:
+    fig.add_trace(
+        go.Scatter(x=df_resampled['datetime'], y=df_resampled[col], name=col, mode='lines', visible='legendonly'),
+        secondary_y=False
+    )
 
 # Add BATTERY on secondary y-axis (filter out NaN values)
-if 'BATTERY' in df.columns:
-    battery_data = df[['datetime', 'BATTERY']].dropna()
+if 'BATTERY' in df_resampled.columns:
+    battery_data = df_resampled[['datetime', 'BATTERY']].dropna()
     fig.add_trace(
         go.Scatter(
             x=battery_data['datetime'], 
@@ -94,7 +100,7 @@ if 'BATTERY' in df.columns:
 
 # Update axes
 fig.update_xaxes(title_text="Time")
-fig.update_yaxes(title_text="Count", secondary_y=False)
+fig.update_yaxes(title_text="Consumption / Count", secondary_y=False)
 fig.update_yaxes(title_text="Battery (V)", secondary_y=True, showgrid=False)
 
 fig.update_layout(
@@ -106,7 +112,8 @@ fig.update_layout(
         y=1.02,
         xanchor="left",
         x=0
-    )
+    ),
+    barmode='group'
 )
 
 st.plotly_chart(fig, use_container_width=True)
