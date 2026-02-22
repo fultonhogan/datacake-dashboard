@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
 
 st.set_page_config(page_title="Datacake Dashboard", layout="wide")
 
@@ -7,13 +9,12 @@ st.set_page_config(page_title="Datacake Dashboard", layout="wide")
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
-password = st.text_input("Password", type="password")
-
-if st.button("Login"):
-    if password == st.secrets["APP_PASSWORD"]:
-        st.session_state.logged_in = True
-
 if not st.session_state.logged_in:
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if password == st.secrets["APP_PASSWORD"]:
+            st.session_state.logged_in = True
+            st.rerun()
     st.stop()
 
 # ---- DATA ----
@@ -34,5 +35,78 @@ def load_data():
 
 df = load_data()
 
+# Convert datetime to pandas datetime
+df['datetime'] = pd.to_datetime(df['datetime'])
+
+# Sidebar controls
+st.sidebar.header("Settings")
+sampling_period = st.sidebar.selectbox(
+    "Sampling Period",
+    options=["30min", "1H", "1D", "1M"],
+    format_func=lambda x: {"30min": "30 minutes", "1H": "1 hour", "1D": "1 day", "1M": "1 month"}[x]
+)
+
+# Debug: show data info
+st.sidebar.write("Columns:", df.columns.tolist())
+if 'battery' in df.columns:
+    st.sidebar.write(f"Battery min: {df['battery'].min():.2f}V")
+    st.sidebar.write(f"Battery max: {df['battery'].max():.2f}V")
+    st.sidebar.write(f"Battery mean: {df['battery'].mean():.2f}V")
+st.sidebar.write("First few rows:")
+st.sidebar.dataframe(df.head())
+
+# Resample data
+df_resampled = df.set_index('datetime').resample(sampling_period).last().reset_index()
+
+# Calculate differences (consumption) for COUNT_TIME columns
+count_cols = [col for col in df.columns if col.startswith('COUNT_TIME')]
+df_diff = df_resampled.copy()
+for col in count_cols:
+    df_diff[f'{col}_diff'] = df_resampled[col].diff().fillna(0)
+
 st.title("📈 Datacake Historical Data")
-st.line_chart(df.set_index("datetime"))
+
+# Create dual-axis chart using subplots
+fig = make_subplots(specs=[[{"secondary_y": True}]])
+
+# Add traces for all columns except datetime and BATTERY
+for col in df.columns:
+    if col not in ['datetime', 'BATTERY']:
+        fig.add_trace(
+            go.Scatter(x=df['datetime'], y=df[col], name=col, mode='lines'),
+            secondary_y=False
+        )
+
+# Add BATTERY on secondary y-axis (filter out NaN values)
+if 'BATTERY' in df.columns:
+    battery_data = df[['datetime', 'BATTERY']].dropna()
+    fig.add_trace(
+        go.Scatter(
+            x=battery_data['datetime'], 
+            y=battery_data['BATTERY'], 
+            name='BATTERY', 
+            mode='lines+markers',
+            line=dict(color='green', width=2),
+            marker=dict(size=4)
+        ),
+        secondary_y=True
+    )
+
+# Update axes
+fig.update_xaxes(title_text="Time")
+fig.update_yaxes(title_text="Count", secondary_y=False)
+fig.update_yaxes(title_text="Battery (V)", secondary_y=True, showgrid=False)
+
+fig.update_layout(
+    hovermode='x unified',
+    height=600,
+    legend=dict(
+        orientation="h",
+        yanchor="bottom",
+        y=1.02,
+        xanchor="left",
+        x=0
+    )
+)
+
+st.plotly_chart(fig, use_container_width=True)
