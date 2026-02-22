@@ -18,11 +18,19 @@ if not st.session_state.logged_in:
 
 # ---- DATA ----
 SHEET_CSV_URL = st.secrets["SHEET_CSV_URL"]
-print(f"SHEET_CSV_URL: {SHEET_CSV_URL}") 
 
 @st.cache_data
 def load_data():
-    return pd.read_csv(SHEET_CSV_URL)
+    try:
+        # Ensure URL starts with http/https
+        if not SHEET_CSV_URL.startswith(('http://', 'https://')):
+            st.error(f"Invalid URL format: {SHEET_CSV_URL}")
+            st.stop()
+        return pd.read_csv(SHEET_CSV_URL)
+    except Exception as e:
+        st.error(f"Failed to load data from: {SHEET_CSV_URL}")
+        st.error(f"Error: {str(e)}")
+        raise
 
 df = load_data()
 
