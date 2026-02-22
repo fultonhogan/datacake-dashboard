@@ -35,4 +35,4 @@ def load_data():
 df = load_data()
 
 st.title("📈 Datacake Historical Data")
-st.line_chart(df.set_index("timestamp"))
+st.line_chart(df.set_index("datetime"))
