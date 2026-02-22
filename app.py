@@ -38,28 +38,59 @@ df = load_data()
 # Convert datetime to pandas datetime
 df['datetime'] = pd.to_datetime(df['datetime'])
 
+# Initialize session state for date range
+if 'start_date' not in st.session_state:
+    st.session_state.start_date = (pd.Timestamp.today() - pd.Timedelta(days=7)).date()
+if 'end_date' not in st.session_state:
+    st.session_state.end_date = pd.Timestamp.today().date()
+
 # Sidebar controls
 st.sidebar.header("Settings")
+
+# Date range selector
+start_date_input = st.sidebar.date_input("Start Date", value=st.session_state.start_date)
+end_date_input = st.sidebar.date_input("End Date", value=st.session_state.end_date)
+
+# Sampling period selector
 sampling_period = st.sidebar.selectbox(
     "Sampling Period",
     options=["30min", "1H", "1D", "1M"],
     format_func=lambda x: {"30min": "30 minutes", "1H": "1 hour", "1D": "1 day", "1M": "1 month"}[x]
 )
 
-# Debug: show data info
-st.sidebar.write("Columns:", df.columns.tolist())
-if 'battery' in df.columns:
-    st.sidebar.write(f"Battery min: {df['battery'].min():.2f}V")
-    st.sidebar.write(f"Battery max: {df['battery'].max():.2f}V")
-    st.sidebar.write(f"Battery mean: {df['battery'].mean():.2f}V")
-st.sidebar.write("First few rows:")
-st.sidebar.dataframe(df.head())
+# Check if dates have changed
+dates_changed = (start_date_input != st.session_state.start_date or 
+                 end_date_input != st.session_state.end_date)
+
+# Filter button with warning
+col1, col2 = st.sidebar.columns([1, 2])
+with col1:
+    filter_clicked = st.button("Filter Data")
+with col2:
+    if dates_changed:
+        st.markdown("⚠️ Update needed")
+
+# Only update when clicked
+if filter_clicked:
+    st.session_state.start_date = start_date_input
+    st.session_state.end_date = end_date_input
+    st.rerun()
+
+# Filter data by date range using session state values
+df_filtered = df[(df['datetime'].dt.date >= st.session_state.start_date) & 
+                 (df['datetime'].dt.date <= st.session_state.end_date)]
+
+# Debug: show battery stats
+if 'BATTERY' in df_filtered.columns:
+    battery_vals = df_filtered['BATTERY'].dropna()
+    if len(battery_vals) > 0:
+        st.sidebar.write(f"Battery: {battery_vals.min():.2f}V - {battery_vals.max():.2f}V")
 
 # Resample data
-df_resampled = df.set_index('datetime').resample(sampling_period).last().reset_index()
+df_resampled = df_filtered.set_index('datetime').resample(sampling_period).last().reset_index()
 
 # Calculate differences (consumption) for COUNT_TIME columns
-count_cols = [col for col in df.columns if col.startswith('COUNT_TIME')]
+count_cols = [col for col in df_filtered.columns if col.startswith('COUNT_TIME')]
 df_diff = df_resampled.copy()
 for col in count_cols:
     df_diff[f'{col}_diff'] = df_resampled[col].diff().fillna(0)
