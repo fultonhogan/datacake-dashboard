@@ -80,6 +80,18 @@ if filter_clicked:
 df_filtered = df[(df['datetime'].dt.date >= st.session_state.start_date) & 
                  (df['datetime'].dt.date <= st.session_state.end_date)]
 
+# Show statistics in sidebar
+st.sidebar.markdown("---")
+st.sidebar.subheader("Period Statistics")
+
+# Calculate total variation for COUNT_TIME columns
+count_cols = [col for col in df_filtered.columns if col.startswith('COUNT_TIME')]
+for col in count_cols:
+    valid_data = df_filtered[col].dropna()
+    if len(valid_data) > 0:
+        total_variation = valid_data.iloc[-1] - valid_data.iloc[0]
+        st.sidebar.metric(label=col, value=f"{int(total_variation)}")
+
 # Debug: show battery stats
 if 'BATTERY' in df_filtered.columns:
     battery_vals = df_filtered['BATTERY'].dropna()
