@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+import json
 
 st.set_page_config(page_title="Datacake Dashboard", layout="wide")
 
@@ -10,6 +11,7 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
+    st.title("FH Dashboard")
     password = st.text_input("Password", type="password")
     if st.button("Login"):
         if password == st.secrets["APP_PASSWORD"]:
@@ -19,6 +21,10 @@ if not st.session_state.logged_in:
 
 # ---- DATA ----
 SHEET_CSV_URL = st.secrets["SHEET_CSV_URL"]
+
+# Load sensor configuration
+with open('sensor_config.json', 'r') as f:
+    sensor_config = json.load(f)
 
 @st.cache_data
 def load_data():
@@ -90,7 +96,12 @@ for col in count_cols:
     valid_data = df_filtered[col].dropna()
     if len(valid_data) > 0:
         total_variation = valid_data.iloc[-1] - valid_data.iloc[0]
-        st.sidebar.metric(label=col, value=f"{int(total_variation)}")
+        # Get friendly name and unit from config
+        friendly_name = sensor_config.get(col, col)
+        unit = sensor_config.get(f"{col}_UNIT", "")
+        label = friendly_name if friendly_name else col
+        value_str = f"{int(total_variation):,} {unit}" if unit else f"{int(total_variation):,}"
+        st.sidebar.metric(label=label, value=value_str)
 
 # Debug: show battery stats
 if 'BATTERY' in df_filtered.columns:
@@ -107,22 +118,29 @@ df_diff = df_resampled.copy()
 for col in count_cols:
     df_diff[f'{col}_diff'] = df_resampled[col].diff().fillna(0)
 
-st.title("📈 Datacake Historical Data")
+st.title(f"📈 {sensor_config.get('sensor', 'Datacake')} Dashboard")
 
 # Create dual-axis chart using subplots
 fig = make_subplots(specs=[[{"secondary_y": True}]])
 
 # Add bar traces for consumption (differences) for COUNT_TIME columns
 for col in count_cols:
+    friendly_name = sensor_config.get(col, col)
+    unit = sensor_config.get(f"{col}_UNIT", "")
+    label = f"{friendly_name} consumption" if friendly_name else f"{col} consumption"
+    if unit:
+        label += f" ({unit})"
     fig.add_trace(
-        go.Bar(x=df_diff['datetime'], y=df_diff[f'{col}_diff'], name=f'{col} consumption'),
+        go.Bar(x=df_diff['datetime'], y=df_diff[f'{col}_diff'], name=label),
         secondary_y=False
     )
 
 # Add line traces for cumulative COUNT_TIME columns
 for col in count_cols:
+    friendly_name = sensor_config.get(col, col)
+    label = friendly_name if friendly_name else col
     fig.add_trace(
-        go.Scatter(x=df_resampled['datetime'], y=df_resampled[col], name=col, mode='lines', visible='legendonly'),
+        go.Scatter(x=df_resampled['datetime'], y=df_resampled[col], name=label, mode='lines', visible='legendonly'),
         secondary_y=False
     )
 
@@ -142,7 +160,10 @@ if 'BATTERY' in df_resampled.columns:
     )
 
 # Update axes
-fig.update_xaxes(title_text="Time")
+fig.update_xaxes(
+    title_text="Time",
+    range=[pd.Timestamp(st.session_state.start_date), pd.Timestamp(st.session_state.end_date) + pd.Timedelta(days=1)]
+)
 fig.update_yaxes(title_text="Consumption / Count", secondary_y=False)
 fig.update_yaxes(title_text="Battery (V)", secondary_y=True, showgrid=False)
 
