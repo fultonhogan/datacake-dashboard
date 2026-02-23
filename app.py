@@ -24,7 +24,7 @@ if not st.session_state.logged_in:
 with open('sensor_config.json', 'r') as f:
     all_sensors_config = json.load(f)
 
-@st.cache_data
+@st.cache_data(ttl=300)  # Cache for 5 minutes
 def load_data(data_url_key):
     SHEET_CSV_URL = st.secrets[data_url_key]
     try:
@@ -72,33 +72,41 @@ if 'end_date' not in st.session_state:
 # Sidebar controls
 st.sidebar.header("Settings")
 
-# Date range selector
-start_date_input = st.sidebar.date_input("Start Date", value=st.session_state.start_date)
-end_date_input = st.sidebar.date_input("End Date", value=st.session_state.end_date)
+# Date range selector - compact layout
+col1, col2 = st.sidebar.columns([1, 2])
+with col1:
+    st.write("Start Date:")
+with col2:
+    start_date_input = st.date_input("Start Date", value=st.session_state.start_date, label_visibility="collapsed")
 
-# Sampling period selector
-sampling_period = st.sidebar.selectbox(
-    "Sampling Period",
-    options=["30min", "1H", "1D", "1M"],
-    format_func=lambda x: {"30min": "30 minutes", "1H": "1 hour", "1D": "1 day", "1M": "1 month"}[x]
-)
+col1, col2 = st.sidebar.columns([1, 2])
+with col1:
+    st.write("End Date:")
+with col2:
+    end_date_input = st.date_input("End Date", value=st.session_state.end_date, label_visibility="collapsed")
+
+# Sampling period selector - compact layout
+col1, col2 = st.sidebar.columns([1, 2])
+with col1:
+    st.write("Sampling:")
+with col2:
+    sampling_period = st.selectbox(
+        "Sampling Period",
+        options=["30min", "1H", "1D", "1M"],
+        format_func=lambda x: {"30min": "30 min", "1H": "1 hour", "1D": "1 day", "1M": "1 month"}[x],
+        label_visibility="collapsed"
+    )
 
 # Check if dates have changed
 dates_changed = (start_date_input != st.session_state.start_date or 
                  end_date_input != st.session_state.end_date)
 
-# Filter button with warning
-col1, col2 = st.sidebar.columns([1, 2])
-with col1:
-    filter_clicked = st.button("Filter Data")
-with col2:
-    if dates_changed:
-        st.markdown("⚠️ Update needed")
-
-# Only update when clicked
-if filter_clicked:
+# Update Data button with visual indicator
+button_label = "⚠️ Update Data" if dates_changed else "Update Data"
+if st.sidebar.button(button_label, use_container_width=True):
     st.session_state.start_date = start_date_input
     st.session_state.end_date = end_date_input
+    st.cache_data.clear()  # Clear cache to refresh data
     st.rerun()
 
 # Filter data by date range using session state values
