@@ -13,6 +13,16 @@
     "data_url": "SHEET_CSV_URL_02",
     "COUNT_TIME1": "Gas",
     "COUNT_TIME1_UNIT": "m3",
+    "COUNT_TIME2": "Diesel",
+    "COUNT_TIME2_UNIT": "L",
+    "COUNT_TIME3": "",
+    "COUNT_TIME3_UNIT": "",
+    "timezone": "Australia/Brisbane"
+  },
+  "qld_orm_water-disch": {
+    "data_url": "SHEET_CSV_URL_03",
+    "COUNT_TIME1": "Water",
+    "COUNT_TIME1_UNIT": "m3",
     "COUNT_TIME2": "",
     "COUNT_TIME2_UNIT": "",
     "COUNT_TIME3": "",
